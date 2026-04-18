@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Visualization Video Generator (1080p)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        input[type="file"] { display: none; }
+        
+        .canvas-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #1a1a1a;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* 美化滑桿 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #4299e1;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4a5568;
+            border-radius: 2px;
+        }
+        
+        /* 美化 Switch OnOff */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #4a5568;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #4299e1; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* 美化 Color Picker */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            padding: 0;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- 標題區 -->
+        <div class="flex flex-col md:flex-row justify-between items-center border-b border-gray-700 pb-4">
+            <div>
+                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                    Music Visualization Video Generator
+                </h1>
+                <p class="text-gray-400 text-sm mt-1">1080p | Advanced Customization | Supports MP4/WebM</p>
+            </div>
+            
+            <div class="mt-4 md:mt-0 flex gap-3">
+                <button id="btnRecord" class="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-full font-bold transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-circle"></i> <span>Start Recording</span>
+                </button>
+                <a id="btnDownload" style="display:none" class="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-full font-bold transition flex items-center gap-2 cursor-pointer">
+                    <i class="fas fa-download"></i> Download Video
+                </a>
+            </div>
+        </div>
+
+        <!-- 主要工作區 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- 左側：Control Panel (佔 4 欄) -->
+            <div class="lg:col-span-4 space-y-6 bg-gray-800 p-6 rounded-xl shadow-lg h-fit max-h-[85vh] overflow-y-auto">
+                
+                <!-- 1. Content Settings -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold border-l-4 border-blue-500 pl-3">1. Basic Info</h3>
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">Title</label>
+                        <input type="text" id="inputTitle" value="Unknown Song" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:border-blue-500 outline-none transition text-white">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">Composer</label>
+                        <input type="text" id="inputComposer" value="Composer Name" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:border-blue-500 outline-none transition text-white">
+                    </div>
+                </div>
+
+                <!-- 2. 檔案Upload -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold border-l-4 border-purple-500 pl-3">2. Media Resources</h3>
+                    
+                    <div class="flex flex-col gap-2">
+                        <label class="cursor-pointer bg-gray-700 hover:bg-gray-600 px-4 py-3 rounded transition flex justify-center items-center gap-2 text-sm border border-dashed border-gray-500">
+                            <i class="fas fa-image text-pink-400"></i> Upload Cover Image
+                            <input type="file" id="fileImage" accept="image/*">
+                        </label>
+                        <div id="imgStatus" class="text-xs text-gray-400 text-center">No image selected</div>
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        <label class="cursor-pointer bg-gray-700 hover:bg-gray-600 px-4 py-3 rounded transition flex justify-center items-center gap-2 text-sm border border-dashed border-gray-500">
+                            <i class="fas fa-music text-blue-400"></i> Upload Audio File
+                            <input type="file" id="fileAudio" accept="audio/*">
+                        </label>
+                        <div id="audioStatus" class="text-xs text-gray-400 text-center">No audio selected</div>
+                    </div>
+                </div>
+
+                <!-- 3. 進階Custom選項 -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold border-l-4 border-yellow-500 pl-3">3. Visual Settings</h3>
+                    
+                    <!-- 頻譜OnOff與顏色 -->
+                    <div class="bg-gray-700/50 p-3 rounded-lg space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium">Show Spectrum Bars</span>
+                            <label class="switch">
+                                <input type="checkbox" id="settingShowSpectrum" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between items-center" id="spectrumColorControl">
+                            <span class="text-sm text-gray-400">Spectrum Color</span>
+                            <input type="color" id="settingSpectrumColor" value="#ffffff">
+                        </div>
+                    </div>
+
+                    <!-- 進度條OnOff -->
+                    <div class="bg-gray-700/50 p-3 rounded-lg flex justify-between items-center">
+                        <span class="text-sm font-medium">Show Progress Bar and Time</span>
+                        <label class="switch">
+                            <input type="checkbox" id="settingShowProgress" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- 模糊度滑桿 -->
+                    <div class="bg-gray-700/50 p-3 rounded-lg space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span>Background Blur</span>
+                            <span id="valBlur" class="text-blue-400">30px</span>
+                        </div>
+                        <input type="range" id="settingBlur" min="0" max="100" value="30">
+                    </div>
+
+                    <!-- 跳動強度滑桿 -->
+                    <div class="bg-gray-700/50 p-3 rounded-lg space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span>Bass Pulse Intensity</span>
+                            <span id="valPulse" class="text-blue-400">Medium</span>
+                        </div>
+                        <input type="range" id="settingPulse" min="0" max="0.3" step="0.01" value="0.12">
+                    </div>
+                </div>
+
+                <!-- 4. 播放控制 -->
+                <div class="space-y-4 pb-4">
+                    <h3 class="text-lg font-semibold border-l-4 border-green-500 pl-3">4. Preview</h3>
+                    <div class="flex justify-center">
+                        <button id="btnPlay" class="w-16 h-16 rounded-full bg-white text-gray-900 flex items-center justify-center text-2xl hover:scale-105 transition shadow-[0_0_15px_rgba(255,255,255,0.3)] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <i class="fas fa-play ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側：Canvas 預覽 (佔 8 欄) -->
+            <div class="lg:col-span-8 flex flex-col gap-4">
+                <div class="canvas-container border border-gray-700">
+                    <canvas id="mainCanvas" width="1920" height="1080"></canvas>
+                </div>
+                
+                <!-- 狀態日誌移到畫布下方 -->
+                <div class="bg-black rounded p-3 text-xs font-mono text-green-400 h-32 overflow-y-auto" id="logs">
+                    > System initialization complete，等待Upload素材...<br>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 變數與初始化 ---
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const logBox = document.getElementById('logs');
+        
+        // 離屏 Canvas (用於緩存模糊Background，優化效能)
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = 1920;
+        bgCanvas.height = 1080;
+        const bgCtx = bgCanvas.getContext('2d');
+
+        // 音頻狀態變數
+        let audioContext, analyser, sourceNode, destNode;
+        let audioEl = new Audio();
+        audioEl.crossOrigin = "anonymous"; 
+        
+        let coverImg = new Image();
+        let isPlaying = false;
+        let animationId;
+        
+        // 錄製相Off
+        let mediaRecorder;
+        let recordedChunks = [];
+        let recordMimeType = ''; 
+        let recordExtension = ''; 
+        
+        // 預設圖片 (佔位符)
+        coverImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'%3E%3Crect width='800' height='800' fill='%23333'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='40' fill='%23666' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E";
+        
+        // --- 設定檔 (與 UI 綁定) ---
+        const CONFIG = {
+            width: 1920,
+            height: 1080,
+            coverSize: 600,
+            coverX: 480,
+            textX: 1000,
+            fadeDuration: 2.5,
+            barCount: 120,
+            
+            // 以下數值由 UI 控制
+            blurAmount: 30,
+            pulseStrength: 0.12,
+            showSpectrum: true,
+            spectrumColor: '#ffffff',
+            showProgress: true
+        };
+
+        // HEX 轉 RGB 工具函數 (用於頻譜透明度計算)
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 255, g: 255, b: 255 };
+        }
+
+        // --- 工具函數 ---
+        function log(msg) {
+            logBox.innerHTML += `> ${msg}<br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function getBestSupportedMimeType() {
+            const types = [
+                'video/webm; codecs=vp9,opus',
+                'video/webm; codecs=vp8,opus',
+                'video/webm',
+                'video/mp4'
+            ];
+            for (const type of types) {
+                if (MediaRecorder.isTypeSupported(type)) return type;
+            }
+            return '';
+        }
+
+        // --- 核心邏輯：初始化音頻 ---
+        function initAudio() {
+            if (!audioContext) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048; 
+                analyser.smoothingTimeConstant = 0.6; 
+                
+                destNode = audioContext.createMediaStreamDestination();
+
+                try {
+                    sourceNode = audioContext.createMediaElementSource(audioEl);
+                } catch(e) {
+                    if(!sourceNode) console.error(e);
+                }
+                
+                if (sourceNode) {
+                    try { sourceNode.disconnect(); } catch(e) {}
+                    try { analyser.disconnect(); } catch(e) {}
+                    
+                    sourceNode.connect(analyser);
+                    analyser.connect(destNode);
+                    analyser.connect(audioContext.destination);
+                }
+                log("音頻System initialization complete");
+            }
+        }
+
+        // --- 核心邏輯：生成模糊Background緩存 ---
+        function preRenderBlurredBackground() {
+            if (!coverImg.complete) return;
+            
+            bgCtx.clearRect(0, 0, CONFIG.width, CONFIG.height);
+            
+            const scale = Math.max(CONFIG.width / coverImg.width, CONFIG.height / coverImg.height);
+            const x = (CONFIG.width / 2) - (coverImg.width / 2) * scale;
+            const y = (CONFIG.height / 2) - (coverImg.height / 2) * scale;
+            
+            bgCtx.filter = `blur(${CONFIG.blurAmount}px) brightness(0.4)`;
+            bgCtx.drawImage(coverImg, x, y, coverImg.width * scale, coverImg.height * scale);
+            bgCtx.filter = 'none'; 
+        }
+
+        // --- 核心邏輯：繪製幀 ---
+        function drawFrame() {
+            let bassScale = 1;
+            let frequencyData = null; 
+            
+            if (analyser && !audioEl.paused) {
+                const bufferLength = analyser.frequencyBinCount; 
+                frequencyData = new Uint8Array(bufferLength);
+                analyser.getByteFrequencyData(frequencyData);
+                
+                let sum = 0;
+                const bassSamples = 120; 
+                for (let i = 0; i < bassSamples; i++) {
+                    sum += frequencyData[i];
+                }
+                const average = sum / bassSamples; 
+                
+                const intensity = Math.pow(average / 255, 2);
+                bassScale = 1 + (10 * intensity * CONFIG.pulseStrength);
+            }
+
+            // 清空畫布
+            ctx.clearRect(0, 0, CONFIG.width, CONFIG.height);
+
+            // 1. 繪製動態Background
+            ctx.save();
+            ctx.translate(CONFIG.width / 2, CONFIG.height / 2);
+            ctx.scale(bassScale, bassScale); 
+            const bgOverscale = 1.05;
+            ctx.scale(bgOverscale, bgOverscale);
+            ctx.translate(-CONFIG.width / 2, -CONFIG.height / 2);
+            ctx.drawImage(bgCanvas, 0, 0); 
+            ctx.restore();
+
+            // 2. 繪製左側封面
+            const coverW = CONFIG.coverSize;
+            const coverH = CONFIG.coverSize;
+            const coverX = CONFIG.coverX - (coverW / 2);
+            const coverY = (CONFIG.height / 2) - (coverH / 2);
+
+            ctx.save();
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            ctx.shadowBlur = 40;
+            ctx.shadowOffsetX = 10;
+            ctx.shadowOffsetY = 10;
+            ctx.drawImage(coverImg, coverX, coverY, coverW, coverH);
+            ctx.strokeStyle = "rgba(255,255,255,0.3)";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(coverX, coverY, coverW, coverH);
+            ctx.restore();
+
+            // 3. 繪製右側文字
+            const title = document.getElementById('inputTitle').value;
+            const composer = document.getElementById('inputComposer').value;
+            const textCenterY = CONFIG.height / 2;
+
+            ctx.fillStyle = "white";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "bottom";
+            
+            ctx.font = "bold 90px 'Noto Sans TC', sans-serif";
+            ctx.shadowColor = "rgba(0,0,0,0.8)";
+            ctx.shadowBlur = 10;
+            ctx.fillText(title, CONFIG.textX, textCenterY - 20);
+
+            ctx.textBaseline = "top";
+            ctx.font = "300 50px 'Noto Sans TC', sans-serif";
+            ctx.fillStyle = "#cccccc";
+            ctx.fillText(composer, CONFIG.textX, textCenterY + 10);
+
+            // 4. 繪製進度條 (依據OnOff)
+            if (CONFIG.showProgress && audioEl.duration) {
+                const progress = audioEl.currentTime / audioEl.duration;
+                const barWidth = 600;
+                const barHeight = 8;
+                const barX = CONFIG.textX;
+                const barY = textCenterY + 100;
+
+                ctx.fillStyle = "rgba(255,255,255,0.2)";
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                const glow = 15 + (bassScale - 1) * 100;
+                ctx.fillStyle = CONFIG.spectrumColor; // 使用Custom顏色
+                ctx.shadowColor = CONFIG.spectrumColor;
+                ctx.shadowBlur = glow; 
+                ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+                
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = "#aaa";
+                ctx.font = "24px monospace";
+                ctx.fillText(formatTime(audioEl.currentTime) + " / " + formatTime(audioEl.duration), barX, barY + 30);
+            }
+
+            // 5. 繪製底部頻譜 (依據OnOff)
+            if (CONFIG.showSpectrum && frequencyData) {
+                const bars = CONFIG.barCount;
+                const totalWidth = CONFIG.width;
+                const barWidth = (totalWidth / bars) * 0.8;
+                const gap = (totalWidth / bars) * 0.2;
+                const bottomY = CONFIG.height;
+                
+                const usefulDataLength = Math.floor(frequencyData.length * 0.7);
+                const step = Math.floor(usefulDataLength / bars);
+                
+                const rgb = hexToRgb(CONFIG.spectrumColor);
+
+                ctx.shadowBlur = 0; 
+
+                for (let i = 0; i < bars; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < step; j++) {
+                        const index = i * step + j;
+                        if (index < frequencyData.length) {
+                            sum += frequencyData[index];
+                        }
+                    }
+                    const value = sum / step; 
+                    
+                    const percent = value / 255;
+                    const barHeight = Math.max(4, percent * 250); 
+                    const x = i * (barWidth + gap) + (gap / 2); 
+                    const y = bottomY - barHeight;
+
+                    // 使用選定的顏色並根據音量調整透明度
+                    const alpha = 0.3 + (percent * 0.7); 
+                    ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+                    
+                    // 圓角效果 (讓條狀圖頂部為圓角)
+                    ctx.beginPath();
+                    ctx.roundRect(x, y, barWidth, barHeight, [4, 4, 0, 0]);
+                    ctx.fill();
+                }
+            }
+
+            // 6. 淡入淡出處理
+            if (audioEl.duration) {
+                const fadeTime = CONFIG.fadeDuration;
+                const currentTime = audioEl.currentTime;
+                const duration = audioEl.duration;
+                let fadeOpacity = 0; 
+
+                if (currentTime < fadeTime) {
+                    fadeOpacity = 1 - (currentTime / fadeTime);
+                }
+                else if (currentTime > duration - fadeTime) {
+                    fadeOpacity = 1 - ((duration - currentTime) / fadeTime);
+                }
+
+                if (fadeOpacity > 0) {
+                    fadeOpacity = Math.max(0, Math.min(1, fadeOpacity));
+                    ctx.fillStyle = `rgba(0,0,0,${fadeOpacity})`;
+                    ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
+                }
+            }
+
+            animationId = requestAnimationFrame(drawFrame);
+        }
+
+        // --- UI 事件綁定：Custom義選項 ---
+        
+        // OnOff：Show Spectrum
+        document.getElementById('settingShowSpectrum').addEventListener('change', (e) => {
+            CONFIG.showSpectrum = e.target.checked;
+            document.getElementById('spectrumColorControl').style.opacity = e.target.checked ? '1' : '0.4';
+            if (!isPlaying) requestAnimationFrame(drawFrame);
+        });
+
+        // 顏色：Spectrum Color
+        document.getElementById('settingSpectrumColor').addEventListener('input', (e) => {
+            CONFIG.spectrumColor = e.target.value;
+            if (!isPlaying) requestAnimationFrame(drawFrame);
+        });
+
+        // OnOff：顯示進度條
+        document.getElementById('settingShowProgress').addEventListener('change', (e) => {
+            CONFIG.showProgress = e.target.checked;
+            if (!isPlaying) requestAnimationFrame(drawFrame);
+        });
+
+        // 滑桿：模糊度
+        document.getElementById('settingBlur').addEventListener('input', (e) => {
+            CONFIG.blurAmount = e.target.value;
+            document.getElementById('valBlur').innerText = `${CONFIG.blurAmount}px`;
+            preRenderBlurredBackground(); // 模糊度改變需要重繪Background
+            if (!isPlaying) requestAnimationFrame(drawFrame);
+        });
+
+        // 滑桿：跳動強度
+        document.getElementById('settingPulse').addEventListener('input', (e) => {
+            CONFIG.pulseStrength = parseFloat(e.target.value);
+            let label = "Medium";
+            if (CONFIG.pulseStrength === 0) label = "Off (靜止)";
+            else if (CONFIG.pulseStrength < 0.1) label = "微弱";
+            else if (CONFIG.pulseStrength > 0.2) label = "劇烈";
+            document.getElementById('valPulse').innerText = label;
+            if (!isPlaying) requestAnimationFrame(drawFrame);
+        });
+
+
+        // --- UI 事件綁定：檔案Upload與播放 ---
+        
+        document.getElementById('fileImage').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                coverImg.src = url;
+                document.getElementById('imgStatus').innerHTML = `<span class="text-green-400 truncate max-w-[200px] inline-block">${file.name}</span>`;
+                log(`Image loaded: ${file.name}`);
+                
+                coverImg.onload = () => {
+                    preRenderBlurredBackground(); 
+                    if (!isPlaying) requestAnimationFrame(drawFrame);
+                };
+            }
+        });
+
+        document.getElementById('fileAudio').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                audioEl.src = url;
+                document.getElementById('audioStatus').innerHTML = `<span class="text-green-400 truncate max-w-[200px] inline-block">${file.name}</span>`;
+                document.getElementById('btnPlay').disabled = false;
+                log(`Audio loaded: ${file.name}`);
+                
+                const fileName = file.name.replace(/\.[^/.]+$/, "");
+                if(document.getElementById('inputTitle').value === "Unknown Song") {
+                    document.getElementById('inputTitle').value = fileName;
+                }
+                if (!isPlaying) requestAnimationFrame(drawFrame);
+            }
+        });
+
+        const btnPlay = document.getElementById('btnPlay');
+        btnPlay.addEventListener('click', () => {
+            initAudio(); 
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            if (audioEl.paused) {
+                audioEl.play().then(() => {
+                    isPlaying = true;
+                    btnPlay.innerHTML = '<i class="fas fa-pause ml-1"></i>';
+                    drawFrame();
+                    log("Start Playback");
+                }).catch(err => {
+                    log("Playback failed: " + err.message);
+                });
+            } else {
+                audioEl.pause();
+                isPlaying = false;
+                btnPlay.innerHTML = '<i class="fas fa-play ml-1"></i>';
+                log("Pause Playback");
+            }
+        });
+
+        ['inputTitle', 'inputComposer'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                if (!isPlaying) requestAnimationFrame(drawFrame);
+            });
+        });
+
+        // --- 錄製邏輯 ---
+        const btnRecord = document.getElementById('btnRecord');
+        const btnDownload = document.getElementById('btnDownload');
+
+        btnRecord.addEventListener('click', () => {
+            if (btnRecord.innerHTML.includes("Start Recording")) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        });
+
+        async function startRecording() {
+            const originalBtnText = btnRecord.innerHTML;
+            btnRecord.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Preparing...</span>';
+            await new Promise(r => setTimeout(r, 50));
+
+            initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            if (audioEl.src === "") {
+                alert("請先Upload音樂");
+                btnRecord.innerHTML = originalBtnText;
+                return;
+            }
+
+            const mimeType = getBestSupportedMimeType();
+            if (!mimeType) {
+                alert("Your browser does not support MediaRecorder API，Cannot record。");
+                btnRecord.innerHTML = originalBtnText;
+                return;
+            }
+            
+            recordMimeType = mimeType;
+            recordExtension = mimeType.includes("mp4") ? "mp4" : "webm";
+            
+            log(`Ready to record，使用格式: ${recordMimeType}`);
+
+            try {
+                audioEl.currentTime = 0;
+                
+                const canvasStream = canvas.captureStream(30); 
+                const audioStream = destNode.stream;
+                
+                const combinedStream = new MediaStream([
+                    ...canvasStream.getVideoTracks(),
+                    ...audioStream.getAudioTracks()
+                ]);
+
+                try {
+                    mediaRecorder = new MediaRecorder(combinedStream, { 
+                        mimeType: recordMimeType,
+                        videoBitsPerSecond: 5000000 
+                    });
+                } catch (e) {
+                    log(`指定格式初始化失敗，嘗試預設配置...`);
+                    mediaRecorder = new MediaRecorder(combinedStream);
+                    recordExtension = "webm"; 
+                }
+
+                recordedChunks = [];
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.onerror = (e) => {
+                    alert("Error during recording: " + (e.error ? e.error.message : "Unknown error"));
+                    stopRecording();
+                };
+
+                mediaRecorder.onstop = () => {
+                    log("Recording stopped，正在生成檔案...");
+                    const blob = new Blob(recordedChunks, { type: recordMimeType });
+                    
+                    if (blob.size === 0) {
+                        alert("Recording failed：檔案大小為 0。");
+                        return;
+                    }
+
+                    const url = URL.createObjectURL(blob);
+                    btnDownload.href = url;
+                    btnDownload.download = `${document.getElementById('inputTitle').value}.${recordExtension}`;
+                    
+                    btnDownload.style.display = 'flex';
+                    log(`Recording successful！檔案大小: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+                    
+                    btnRecord.innerHTML = '<i class="fas fa-circle"></i> <span>Start Recording</span>';
+                    btnRecord.classList.remove('bg-gray-600');
+                    btnRecord.classList.add('bg-red-600');
+                };
+
+                mediaRecorder.start();
+                await new Promise(r => setTimeout(r, 500)); // 預熱
+                await audioEl.play();
+
+                isPlaying = true;
+                btnPlay.innerHTML = '<i class="fas fa-pause ml-1"></i>';
+                drawFrame(); 
+                log("Recording started...");
+
+                btnRecord.innerHTML = '<i class="fas fa-stop"></i> <span>Stop Recording</span>';
+                btnRecord.classList.remove('bg-red-600');
+                btnRecord.classList.add('bg-gray-600');
+                btnDownload.style.display = 'none';
+
+                audioEl.onended = () => {
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        setTimeout(stopRecording, 1000); 
+                    }
+                };
+
+            } catch (err) {
+                console.error(err);
+                alert("啟動Recording failed: " + err.message);
+                btnRecord.innerHTML = '<i class="fas fa-circle"></i> <span>Start Recording</span>';
+                stopRecording();
+            }
+        }
+
+        function stopRecording() {
+            if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            audioEl.pause();
+            isPlaying = false;
+            btnPlay.innerHTML = '<i class="fas fa-play ml-1"></i>';
+        }
+
+        function formatTime(seconds) {
+            if(isNaN(seconds)) return "0:00";
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // 初始載入
+        coverImg.onload = () => {
+            preRenderBlurredBackground();
+            requestAnimationFrame(drawFrame);
+        };
+
+    </script>
+</body>
+</html>
