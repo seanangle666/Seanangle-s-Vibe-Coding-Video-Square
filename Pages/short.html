@@ -522,7 +522,9 @@
             const endSpectrumDrag = (e) => {
                 if (state.dragPointerId !== null && e.pointerId !== state.dragPointerId) return;
                 if (state.dragPointerId !== null && els.spectrum.releasePointerCapture) {
-                    try { els.spectrum.releasePointerCapture(state.dragPointerId); } catch (_) {}
+                    if (!els.spectrum.hasPointerCapture || els.spectrum.hasPointerCapture(state.dragPointerId)) {
+                        els.spectrum.releasePointerCapture(state.dragPointerId);
+                    }
                 }
                 state.dragStart = null;
                 state.dragPointerId = null;
