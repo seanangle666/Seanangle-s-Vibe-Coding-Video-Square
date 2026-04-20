@@ -509,7 +509,11 @@
                 state.dragStart = point;
                 state.dragPointerId = e.pointerId;
                 updateSpectrumSelection(point.x, point.y);
-                if (els.spectrum.setPointerCapture) els.spectrum.setPointerCapture(e.pointerId);
+                try {
+                    els.spectrum.setPointerCapture(e.pointerId);
+                } catch (err) {
+                    console.debug('setPointerCapture failed:', err);
+                }
             });
 
             els.spectrum.addEventListener('pointermove', (e) => {
@@ -521,9 +525,11 @@
 
             const endSpectrumDrag = (e) => {
                 if (state.dragPointerId !== null && e.pointerId !== state.dragPointerId) return;
-                if (state.dragPointerId !== null && els.spectrum.releasePointerCapture) {
-                    if (!els.spectrum.hasPointerCapture || els.spectrum.hasPointerCapture(state.dragPointerId)) {
+                if (state.dragPointerId !== null) {
+                    try {
                         els.spectrum.releasePointerCapture(state.dragPointerId);
+                    } catch (err) {
+                        console.debug('releasePointerCapture failed:', err);
                     }
                 }
                 state.dragStart = null;
