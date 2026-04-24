@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Maker Pro - 跳動修復版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="p-4 lg:p-6">
+
+    <div class="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- 左側：預覽與狀態 -->
+        <div class="lg:col-span-5 space-y-6">
+            <div class="preview-wrapper">
+                <div id="capture-area" class="video-container">
+                    <img id="preview-bg" class="bg-layer" src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200" alt="背景">
+                    <img id="preview-fg" class="fg-layer" src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200" alt="前景">
+                    
+                    <!-- 頂部文字組 -->
+                    <div class="text-group text-top-group" style="--top-offset: 35%;">
+                        <div id="p-top-title" class="title-main text-3xl">主標題</div>
+                        <div id="p-top-sub" class="title-sub text-lg">頂部子標題內容</div>
+                    </div>
+
+                    <!-- 底部文字組 -->
+                    <div class="text-group text-bottom-group" style="--bottom-offset: 35%;">
+                        <div id="p-bottom-title" class="title-main text-3xl">主標題</div>
+                        <div id="p-bottom-sub" class="title-sub text-lg">底部子標題內容</div>
+                    </div>
+
+                    <!-- 錄製中遮罩 -->
+                    <div id="export-overlay" class="absolute inset-0 bg-black/95 flex flex-col items-center justify-center z-50 hidden text-white cursor-pointer" onclick="handleOverlayClick()">
+                        <i class="fas fa-compact-disc fa-spin text-6xl text-accent-terra mb-6"></i>
+                        <p class="text-2xl font-black tracking-widest uppercase">影片導出中...</p>
+                        <p class="text-xs opacity-50 mt-2">請勿關閉分頁以確保錄製完整性</p>
+                        <button class="mt-8 px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold transition" onclick="event.stopPropagation(); forceCloseOverlay()">
+                            <i class="fas fa-times mr-2"></i>強制關閉
+                        </button>
+                    </div>
+                </div>
+
+                <div id="rec-status-bar" class="absolute top-8 left-8 bg-red-600 px-5 py-2 rounded-full text-white text-xs font-black items-center gap-3 hidden shadow-2xl">
+                    <i class="fas fa-circle animate-pulse"></i> <span>RECORDING</span> <span id="rec-timer" class="font-mono">00:00</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-2xl border border-gray-100 space-y-4">
+                <div class="flex justify-between text-[10px] font-black uppercase opacity-50 tracking-widest">
+                    <span id="current-res-info">輸出預設：1080P FULL HD</span>
+                    <span id="sys-msg" class="text-accent-teal">狀態：準備就緒</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="btn-play" class="bg-gray-900 text-white py-4 rounded-2xl font-bold hover:bg-gray-800 transition transform active:scale-95 shadow-lg">
+                        <i class="fas fa-play mr-2"></i>預覽播放
+                    </button>
+                    <button id="btn-record" class="btn-record py-4 rounded-2xl font-bold transform active:scale-95 shadow-lg">
+                        <i class="fas fa-video mr-2"></i>錄製影片
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：控制面板 -->
+        <div class="lg:col-span-7 control-panel space-y-6">
+            <header class="flex items-center justify-between pb-6 border-b border-gray-100">
+                <div>
+                    <h1 class="text-3xl font-black text-gray-800 tracking-tighter">VIDEO MAKER <span class="text-accent-terra">PRO</span></h1>
+                    <p class="text-[10px] font-black opacity-40 uppercase tracking-widest">Automated Visual Production Terminal</p>
+                </div>
+                <div class="flex items-center gap-4 bg-white p-2 rounded-2xl border border-gray-200 shadow-sm">
+                    <label class="text-xs font-black opacity-40 ml-2">比例</label>
+                    <select id="sel-ratio" class="bg-gray-50 border-none rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 ring-accent-teal/20 cursor-pointer">
+                        <option value="9/16">9:16 直式影片</option>
+                        <option value="16/9">16:9 橫式影片</option>
+                        <option value="1/1">1:1 正方形</option>
+                    </select>
+                    <div class="w-px h-6 bg-gray-200"></div>
+                    <label class="text-xs font-black opacity-40">格式</label>
+                    <select id="sel-format" class="bg-gray-50 border-none rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 ring-accent-teal/20 cursor-pointer">
+                        <option value="mp4">MP4 (推薦)</option>
+                        <option value="webm">WebM</option>
+                    </select>
+                </div>
+            </header>
+
+            <!-- 1. 影像配置 -->
+            <section class="bg-white p-6 rounded-[2rem] shadow-md border border-gray-100 space-y-4">
+                <h2 class="text-xs font-black text-accent-teal uppercase tracking-widest flex items-center gap-2">
+                    <i class="fas fa-image"></i> 1. 影像配置
+                </h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="document.getElementById('in-fg').click()" class="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-200 rounded-[1.5rem] hover:bg-accent-teal/5 hover:border-accent-teal transition group">
+                        <i class="fas fa-cloud-arrow-up text-3xl text-gray-300 group-hover:text-accent-teal mb-3"></i>
+                        <span class="text-xs font-black text-gray-500">更換前景主圖</span>
+                        <input type="file" id="in-fg" accept="image/*" class="hidden">
+                    </button>
+                    <button onclick="document.getElementById('in-bg').click()" class="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-200 rounded-[1.5rem] hover:bg-accent-teal/5 hover:border-accent-teal transition group">
+                        <i class="fas fa-layer-group text-3xl text-gray-300 group-hover:text-accent-teal mb-3"></i>
+                        <span class="text-xs font-black text-gray-500">上傳獨立背景</span>
+                        <input type="file" id="in-bg" accept="image/*" class="hidden">
+                    </button>
+                </div>
+            </section>
+
+            <!-- 2. 文字層次與字體 -->
+            <section class="bg-white p-6 rounded-[2rem] shadow-md border border-gray-100 space-y-6">
+                <h2 class="text-xs font-black text-accent-teal uppercase tracking-widest flex items-center gap-2">
+                    <i class="fas fa-font"></i> 2. 文字層次與字體
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 頂部區塊 -->
+                    <div class="p-6 bg-gray-50 rounded-[1.5rem] space-y-4 border border-gray-100">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-black bg-gray-900 text-white px-3 py-1 rounded-full uppercase">Top Layer</span>
+                            <div class="flex gap-3">
+                                <div class="flex flex-col items-center gap-1">
+                                    <input type="color" id="c-top-title" value="#ffffff" class="w-6 h-6 bg-transparent border-none cursor-pointer">
+                                    <span class="text-[8px] font-bold opacity-40">主色</span>
+                                </div>
+                                <div class="flex flex-col items-center gap-1">
+                                    <input type="color" id="c-top-sub" value="#ffffff" class="w-6 h-6 bg-transparent border-none cursor-pointer">
+                                    <span class="text-[8px] font-bold opacity-40">子色</span>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="text" id="t-top-title" placeholder="輸入主標題..." class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm font-black focus:ring-2 ring-accent-teal/10 outline-none">
+                        <input type="text" id="t-top-sub" placeholder="輸入子標題內容..." class="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-medium opacity-70 outline-none">
+                        
+                        <div class="space-y-4 pt-2">
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-black"><span>垂直位置</span><span id="v-o-top-off" class="text-accent-terra">35%</span></div>
+                                <input type="range" id="o-top-off" min="0" max="50" value="35" class="w-full">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex justify-between text-[10px] font-black"><span>主標大小</span><span id="v-s-top-title" class="text-accent-teal">32</span></div>
+                                    <input type="range" id="s-top-title" min="10" max="150" value="32" class="w-full">
+                                </div>
+                                <div class="space-y-1">
+                                    <div class="flex justify-between text-[10px] font-black"><span>子標大小</span><span id="v-s-top-sub" class="text-accent-teal">18</span></div>
+                                    <input type="range" id="s-top-sub" min="8" max="100" value="18" class="w-full">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 底部區塊 -->
+                    <div class="p-6 bg-gray-50 rounded-[1.5rem] space-y-4 border border-gray-100">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-black bg-gray-900 text-white px-3 py-1 rounded-full uppercase">Bottom Layer</span>
+                            <div class="flex gap-3">
+                                <div class="flex flex-col items-center gap-1">
+                                    <input type="color" id="c-bot-title" value="#ffffff" class="w-6 h-6 bg-transparent border-none cursor-pointer">
+                                    <span class="text-[8px] font-bold opacity-40">主色</span>
+                                </div>
+                                <div class="flex flex-col items-center gap-1">
+                                    <input type="color" id="c-bot-sub" value="#ffffff" class="w-6 h-6 bg-transparent border-none cursor-pointer">
+                                    <span class="text-[8px] font-bold opacity-40">子色</span>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="text" id="t-bot-title" placeholder="輸入主標題..." class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm font-black focus:ring-2 ring-accent-teal/10 outline-none">
+                        <input type="text" id="t-bot-sub" placeholder="輸入子標題內容..." class="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-medium opacity-70 outline-none">
+                        
+                        <div class="space-y-4 pt-2">
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-black"><span>垂直位置</span><span id="v-o-bot-off" class="text-accent-terra">35%</span></div>
+                                <input type="range" id="o-bot-off" min="0" max="50" value="35" class="w-full">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex justify-between text-[10px] font-black"><span>主標大小</span><span id="v-s-bot-title" class="text-accent-teal">32</span></div>
+                                    <input type="range" id="s-bot-title" min="10" max="150" value="32" class="w-full">
+                                </div>
+                                <div class="space-y-1">
+                                    <div class="flex justify-between text-[10px] font-black"><span>子標大小</span><span id="v-s-bot-sub" class="text-accent-teal">18</span></div>
+                                    <input type="range" id="s-bot-sub" min="8" max="100" value="18" class="w-full">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. 音樂與動畫配置 -->
+            <section class="bg-white p-6 rounded-[2rem] shadow-md border border-gray-100 space-y-4">
+                <h2 class="text-xs font-black text-accent-teal uppercase tracking-widest flex items-center gap-2">
+                    <i class="fas fa-music"></i> 3. 音樂與動畫配置
+                </h2>
+                
+                <!-- 音訊上傳 -->
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <button onclick="document.getElementById('in-audio').click()" class="w-full flex items-center justify-center gap-3 p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-accent-teal hover:bg-accent-teal/5 transition">
+                        <i class="fas fa-file-audio text-gray-400"></i>
+                        <span class="text-xs font-bold text-gray-600">上傳音樂檔案</span>
+                        <input type="file" id="in-audio" accept="audio/*" class="hidden">
+                    </button>
+                </div>
+
+                <!-- 音訊時間設置 -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black">開始時間(秒)</label>
+                        <input type="number" id="aud-start" value="0" min="0" step="0.1" class="w-full p-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 ring-accent-teal/10">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black">總時長(秒)</label>
+                        <input type="number" id="aud-dur" value="15" min="1" step="0.1" class="w-full p-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 ring-accent-teal/10">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black">淡入(秒)</label>
+                        <input type="number" id="aud-fin" value="0" min="0" step="0.1" class="w-full p-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 ring-accent-teal/10">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black">淡出(秒)</label>
+                        <input type="number" id="aud-fout" value="0" min="0" step="0.1" class="w-full p-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 ring-accent-teal/10">
+                    </div>
+                </div>
+
+                <!-- 動畫模式 -->
+                <div class="space-y-2 pt-2">
+                    <label class="text-[10px] font-black">動畫模式</label>
+                    <div class="flex gap-2">
+                        <button id="mode-bpm" class="flex-1 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold active text-gray-700 transition">
+                            BPM 節拍
+                        </button>
+                        <button id="mode-auto" class="flex-1 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 transition">
+                            音頻反應
+                        </button>
+                    </div>
+                </div>
+
+                <!-- BPM 設置面板 -->
+                <div id="panel-bpm" class="grid grid-cols-2 gap-4 pt-2">
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[10px] font-black"><span>BPM</span><span id="v-bpm-val">120</span></div>
+                        <input type="range" id="i-bpm-val" min="60" max="200" value="120" class="w-full">
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[10px] font-black"><span>強度</span><span id="v-str-val">0.2</span></div>
+                        <input type="range" id="i-str-val" min="0" max="1" step="0.1" value="0.2" class="w-full">
+                    </div>
+                </div>
+
+                <!-- 音頻頻譜分析 -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-[10px] font-black">頻率範圍選擇</label>
+                        <button id="btn-solo-freq" class="text-[10px] font-bold px-3 py-1 bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 transition">
+                            SOLO BAND: OFF
+                        </button>
+                    </div>
+                    <canvas id="spectrum-canvas"></canvas>
+                </div>
+            </section>
+
+            <!-- 隱藏的錄製畫布 -->
+            <canvas id="record-canvas" style="display:none;"></canvas>
+
+            <!-- 字體上傳 -->
+            <section class="bg-white p-6 rounded-[2rem] shadow-md border border-gray-100 space-y-4">
+                <h2 class="text-xs font-black text-accent-teal uppercase tracking-widest flex items-center gap-2">
+                    <i class="fas fa-typewriter"></i> 字體供應
+                </h2>
+                <button onclick="document.getElementById('in-font').click()" class="w-full flex items-center justify-center gap-3 p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-accent-teal hover:bg-accent-teal/5 transition">
+                    <i class="fas fa-download text-gray-400"></i>
+                    <div class="text-left">
+                        <div class="text-xs font-bold text-gray-700">使用自定義字體</div>
+                        <div class="text-[9px] text-gray-500">點擊選擇字體檔案（.ttf/.woff）</div>
+                    </div>
+                    <input type="file" id="in-font" accept=".ttf,.woff,.woff2,.otf" class="hidden">
+                </button>
+                <div class="text-xs bg-blue-50 border border-blue-200 p-3 rounded-lg text-blue-800">
+                    <strong>✓ 已加載字體：</strong>
+                    <span id="font-name">使用系统字体</span>
+                </div>
+            </section>
+
+            <!-- Solo 音頻 -->
+            <div class="text-center">
+                <button id="btn-solo-audio" class="px-6 py-3 bg-accent-teal text-white rounded-2xl font-bold hover:brightness-110 transition">
+                    <i class="fas fa-headphones mr-2"></i>Solo 音頻預覽
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 模塊載入 -->
+    <script src="js/state.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/rendering.js"></script>
+    <script src="js/recording.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
